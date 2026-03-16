@@ -234,16 +234,49 @@
             const hls = new Hls();
             hls.loadSource(LIVE_URL);
             hls.attachMedia(hlsPlayer);
+            
             hls.on(Hls.Events.MANIFEST_PARSED, function() {
                 closeAllPanels();
+                // Hentikan video lain
                 document.querySelectorAll('video:not(#live-player)').forEach(v => v.pause());
+                
+                // Aktifkan panel live
+                document.getElementById('live-panel').classList.add('active');
+                
+                // Putar video
+                hlsPlayer.play().then(() => {
+                    // Minta Fullscreen untuk mode landscape otomatis
+                    if (hlsPlayer.requestFullscreen) {
+                        hlsPlayer.requestFullscreen();
+                    } else if (hlsPlayer.webkitRequestFullscreen) {
+                        hlsPlayer.webkitRequestFullscreen();
+                    } else if (hlsPlayer.msRequestFullscreen) {
+                        hlsPlayer.msRequestFullscreen();
+                    }
+                }).catch(e => {
+                    console.log("Autoplay blocked or error:", e);
+                });
+            });
+
+            // Ganti penanganan error agar popup hanya muncul jika benar-benar gagal load manifest
+            hls.on(Hls.Events.ERROR, function(event, data) {
+                if (data.fatal) {
+                    document.getElementById('alert-modal').style.display = 'flex';
+                    hls.destroy();
+                }
+            });
+        } else if (hlsPlayer.canPlayType('application/vnd.apple.mpegurl')) {
+            // Safari support
+            hlsPlayer.src = LIVE_URL;
+            hlsPlayer.addEventListener('loadedmetadata', function() {
+                closeAllPanels();
                 document.getElementById('live-panel').classList.add('active');
                 hlsPlayer.play();
+                if (hlsPlayer.requestFullscreen) hlsPlayer.requestFullscreen();
             });
-            hls.on(Hls.Events.ERROR, function() {
-                document.getElementById('alert-modal').style.display = 'flex';
-            });
-        } else { alert("HLS not supported"); }
+        } else {
+            alert("Perangkat Anda tidak mendukung HLS.");
+        }
     }
 
     function closeAlert() { document.getElementById('alert-modal').style.display = 'none'; }
@@ -252,6 +285,10 @@
         document.querySelectorAll('.side-panel').forEach(p => p.classList.remove('active'));
         document.getElementById('welcome-modal').style.display = 'none';
         document.getElementById('live-player').pause();
+        // Keluar dari fullscreen jika ada
+        if (document.fullscreenElement) {
+            document.exitFullscreen();
+        }
     }
 
     function closeComments() { document.getElementById('comment-panel').classList.remove('active'); }
