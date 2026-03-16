@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fawaaid Tube</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #000; font-family: sans-serif; }
+        .video-container { height: 100vh; scroll-snap-type: y mandatory; overflow-y: scroll; scrollbar-width: none; }
+        .video-container::-webkit-scrollbar { display: none; }
+        
+        .video-card { height: 100vh; width: 100%; scroll-snap-align: start; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        
+        /* Bingkai Video Rounded & Masking Judul YT */
+        .video-frame {
+            position: relative;
+            width: 95%; /* Membuat bingkai sedikit lebih kecil dari layar */
+            height: 90vh;
+            border-radius: 24px;
+            overflow: hidden;
+            background: #111;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        .iframe-wrapper {
+            position: absolute;
+            top: -10%; left: -10%; /* Zoom out sedikit untuk memotong UI YT */
+            width: 120%; height: 120%;
+            z-index: 1;
+        }
+        iframe { width: 100%; height: 100%; pointer-events: auto; }
+
+        /* Overlay Hitam Tipis di atas untuk memotong teks judul jika masih terlihat */
+        .top-mask {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 60px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+            z-index: 5;
+        }
+
+        .ui-overlay {
+            position: absolute; bottom: 80px; right: 20px;
+            display: flex; flex-direction: column; gap: 20px; z-index: 20;
+        }
+        .caption { position: absolute; bottom: 30px; left: 25px; color: white; z-index: 20; width: 70%; }
+
+        #comment-panel {
+            position: fixed; bottom: -100%; left: 0; width: 100%; height: 60%;
+            background: white; border-radius: 24px 24px 0 0; transition: 0.3s; z-index: 50;
+            display: flex; flex-direction: column;
+        }
+        #comment-panel.active { bottom: 0; }
+    </style>
+</head>
+<body>
+
+<div id="app" class="video-container"></div>
+
+<div id="comment-panel">
+    <div class="p-4 border-b flex justify-between items-center">
+        <span class="font-bold text-gray-800">Komentar</span>
+        <button onclick="closeComments()" class="text-xl text-gray-500">&times;</button>
+    </div>
+    <div id="comment-list" class="flex-1 overflow-y-auto p-4 space-y-3">
+        <p class="text-gray-400 text-sm italic text-center">Memuat komentar...</p>
+    </div>
+    <div class="p-4 border-t flex flex-col gap-2 bg-gray-50">
+        <input id="input-nama" type="text" placeholder="Nama kamu..." class="border rounded-lg px-4 py-2 text-sm focus:outline-none">
+        <div class="flex gap-2">
+            <input id="input-komen" type="text" placeholder="Tulis komentar..." class="flex-1 border rounded-lg px-4 py-2 text-sm focus:outline-none">
+            <button onclick="sendComment()" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-bold">Kirim</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHGTd_JrFphYujz1FZzKwdzaWDpBgA_EH-bA4jw-UQRgnjdRlqXSf2gu1YSYwzZMt6ypv4cF6YIssI/pub?gid=0&single=true&output=csv';
+    const COMMENT_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHGTd_JrFphYujz1FZzKwdzaWDpBgA_EH-bA4jw-UQRgnjdRlqXSf2gu1YSYwzZMt6ypv4cF6YIssI/pub?gid=1398913850&single=true&output=csv'; 
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxo5aawfXOV9o4aMPM1XYM1H2ZvWqCzDIHLFHgtizF2SMy6_m396RQ-7ngMeEhtGhYNcg/exec'; 
+    
+    let currentVideoId = null;
+
+    // Fungsi Pengacak (Fisher-Yates Shuffle)
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
+    async function loadVideos() {
+        try {
+            const response = await fetch(SHEET_CSV_URL);
+            const data = await response.text();
+            let rows = data.split(/\r?\n/).slice(1).filter(row => row.trim() !== ""); 
+
+            // ACAK VIDEO
+            rows = shuffleArray(rows);
+
+            const app = document.getElementById('app');
+            app.innerHTML = ''; 
+            
+            rows.forEach((row) => {
+                const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                if (cols.length >= 3) {
+                    const id = cols[0].replace(/"/g, '').trim();
+                    const title = cols[1].replace(/"/g, '').trim();
+                    const videoId = cols[2].split('/').pop().split('?')[0];
+
+                    const card = document.createElement('div');
+                    card.className = 'video-card';
+                    card.innerHTML = `
+                        <div class="video-frame">
+                            <div class="top-mask"></div>
+                            <div class="iframe-wrapper">
+                                <iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=0&controls=0&modestbranding=1&rel=0&loop=1&playlist=${videoId}" 
+                                        allow="autoplay; encrypted-media"></iframe>
+                            </div>
+                            
+                            <div class="ui-overlay text-white">
+                                <button onclick="handleLike('${id}')" class="flex flex-col items-center">
+                                    <div class="p-3 bg-black/40 rounded-full"><i id="icon-like-${id}" class="fas fa-heart text-2xl"></i></div>
+                                    <span class="text-[10px] mt-1 font-bold">Like</span>
+                                </button>
+                                <button onclick="showComments('${id}')" class="flex flex-col items-center">
+                                    <div class="p-3 bg-black/40 rounded-full"><i class="fas fa-comment-dots text-2xl"></i></div>
+                                    <span class="text-[10px] mt-1 font-bold">Komen</span>
+                                </button>
+                                <button onclick="handleShare('${id}', '${title}')" class="flex flex-col items-center">
+                                    <div class="p-3 bg-black/40 rounded-full"><i class="fas fa-share text-2xl"></i></div>
+                                    <span class="text-[10px] mt-1 font-bold">Share</span>
+                                </button>
+                            </div>
+
+                            <div class="caption">
+                                <h3 class="font-bold text-white drop-shadow-lg text-lg">@FawaaidTube</h3>
+                                <p class="text-sm text-gray-200 drop-shadow-md line-clamp-2">${title}</p>
+                            </div>
+                        </div>
+                    `;
+                    app.appendChild(card);
+                }
+            });
+        } catch (e) { console.error(e); }
+    }
+
+    async function loadComments(videoId) {
+        const list = document.getElementById('comment-list');
+        list.innerHTML = '<p class="text-gray-400 text-sm italic text-center">Memuat komentar...</p>';
+        try {
+            const response = await fetch(COMMENT_CSV_URL + '&t=' + new Date().getTime());
+            const data = await response.text();
+            const delimiter = data.includes(';') ? ';' : ',';
+            const rows = data.split(/\r?\n/).slice(1);
+            list.innerHTML = '';
+            let hasComment = false;
+            rows.forEach(row => {
+                const cols = row.split(new RegExp(`${delimiter}(?=(?:(?:[^"]*"){2})*[^"]*$)`));
+                if(cols.length >= 3) {
+                    const vId = cols[0].replace(/"/g, '').trim();
+                    const type = cols[1].replace(/"/g, '').trim();
+                    if(vId === videoId && type === "Comment") {
+                        const content = cols[2].replace(/"/g, '').trim();
+                        const parts = content.split(': ');
+                        const name = parts[0] || "Hamba Allah";
+                        const msg = parts.slice(1).join(': ') || "";
+                        const div = document.createElement('div');
+                        div.className = "border-b pb-2 px-1";
+                        div.innerHTML = `<p class="text-[10px] font-bold text-red-500">${name}</p><p class="text-sm text-gray-700">${msg}</p>`;
+                        list.prepend(div);
+                        hasComment = true;
+                    }
+                }
+            });
+            if(!hasComment) list.innerHTML = '<p class="text-gray-400 text-sm italic text-center">Belum ada komentar.</p>';
+        } catch (e) { list.innerHTML = '<p class="text-red-400 text-sm text-center">Gagal memuat komentar.</p>'; }
+    }
+
+    async function saveInteraction(videoId, type, content = "") {
+        try {
+            await fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ video_id: videoId, type: type, content: content })
+            });
+        } catch (error) { console.error(error); }
+    }
+
+    function showComments(id) {
+        currentVideoId = id;
+        document.getElementById('comment-panel').classList.add('active');
+        loadComments(id);
+    }
+
+    function closeComments() { document.getElementById('comment-panel').classList.remove('active'); }
+
+    async function sendComment() {
+        const inputNama = document.getElementById('input-nama');
+        const inputKomen = document.getElementById('input-komen');
+        const nama = inputNama.value.trim() || "Hamba Allah";
+        const komen = inputKomen.value.trim();
+        if(!komen) return;
+        const list = document.getElementById('comment-list');
+        if(list.querySelector('p.italic')) list.innerHTML = '';
+        const div = document.createElement('div');
+        div.className = "border-b pb-2 px-1";
+        div.innerHTML = `<p class="text-[10px] font-bold text-red-500">${name}</p><p class="text-sm text-gray-700">${komen}</p>`;
+        list.prepend(div);
+        await saveInteraction(currentVideoId, 'Comment', `${nama}: ${komen}`);
+        inputKomen.value = '';
+    }
+
+    function handleLike(id) {
+        const icon = document.getElementById(`icon-like-${id}`);
+        if(!icon.classList.contains('text-red-500')) {
+            icon.classList.add('text-red-500');
+            saveInteraction(id, 'Like');
+        } else {
+            icon.classList.remove('text-red-500');
+        }
+    }
+
+    function handleShare(id, title) {
+        saveInteraction(id, 'Share');
+        if (navigator.share) navigator.share({ title: title, url: window.location.href + "?v=" + id });
+    }
+
+    loadVideos();
+</script>
+
+</body>
+</html>
