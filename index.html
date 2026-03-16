@@ -13,7 +13,6 @@
         
         .video-card { height: 100vh; width: 100%; scroll-snap-align: start; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
         
-        /* Bingkai Video Rounded & Masking Judul YT */
         .video-frame {
             position: relative;
             width: 95%; 
@@ -44,7 +43,6 @@
             position: absolute; bottom: 80px; right: 20px;
             display: flex; flex-direction: column; gap: 20px; z-index: 20;
         }
-        .caption { position: absolute; bottom: 30px; left: 25px; color: white; z-index: 20; width: 70%; }
 
         #comment-panel {
             position: fixed; bottom: -100%; left: 0; width: 100%; height: 60%;
@@ -52,9 +50,63 @@
             display: flex; flex-direction: column;
         }
         #comment-panel.active { bottom: 0; }
+
+        /* Style Baru untuk Pop-up */
+        #welcome-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+            z-index: 100; display: flex; align-items: center; justify-content: center;
+            transition: opacity 0.3s ease;
+        }
+        .modal-content {
+            background: #1a1a1a; width: 90%; max-width: 400px; max-height: 85vh;
+            border-radius: 28px; padding: 24px; color: white; border: 1px solid #333;
+            overflow-y: auto; position: relative;
+        }
     </style>
 </head>
 <body>
+
+<div id="welcome-modal">
+    <div class="modal-content text-center shadow-2xl">
+        <h1 class="text-2xl font-bold text-red-500 mb-1">Ahlan Wa Sahlan</h1>
+        <p class="text-xs text-gray-400 mb-6 italic">Selamat datang di Fawaaid Tube</p>
+
+        <div class="text-left space-y-5 mb-6">
+            <div>
+                <h2 class="text-[11px] font-bold uppercase text-red-400 mb-2 tracking-widest"><i class="fas fa-rocket mr-2"></i>Fitur</h2>
+                <div class="grid grid-cols-2 gap-2 text-[11px] text-gray-300">
+                    <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">Vertical Video</div>
+                    <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">Interactive Likes</div>
+                    <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">Live Comments</div>
+                    <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">Islamic Content</div>
+                </div>
+            </div>
+
+            <div>
+                <h2 class="text-[11px] font-bold uppercase text-red-400 mb-2 tracking-widest"><i class="fas fa-heart mr-2"></i>Tujuan & Manfaat</h2>
+                <p class="text-xs text-gray-300 leading-relaxed bg-white/5 p-3 rounded-xl border border-white/10">
+                    Media alternatif untuk menikmati konten video singkat yang mengedukasi, menyejukkan hati, dan menambah wawasan keislaman tanpa gangguan konten negatif.
+                </p>
+            </div>
+        </div>
+
+        <div class="flex justify-center gap-6 mb-8">
+            <a href="https://instagram.com" class="text-gray-400 hover:text-pink-500 transition"><i class="fab fa-instagram text-xl"></i></a>
+            <a href="https://tiktok.com" class="text-gray-400 hover:text-white transition"><i class="fab fa-tiktok text-xl"></i></a>
+            <a href="https://youtube.com" class="text-gray-400 hover:text-red-600 transition"><i class="fab fa-youtube text-xl"></i></a>
+        </div>
+
+        <button onclick="closeModal()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-2xl shadow-lg transition active:scale-95 mb-4">
+            Mulai Menjelajah
+        </button>
+
+        <div class="flex justify-between items-center text-[10px] text-gray-500 pt-2 border-t border-white/5">
+            <span>Created by <strong class="text-gray-300 italic">Muzanni</strong></span>
+            <a href="https://wa.me/6285251675143" class="hover:text-red-400 transition"><i class="fab fa-whatsapp mr-1"></i>Saran & Masukan</a>
+        </div>
+    </div>
+</div>
 
 <div id="app" class="video-container"></div>
 
@@ -67,9 +119,9 @@
         <p class="text-gray-400 text-sm italic text-center">Memuat komentar...</p>
     </div>
     <div class="p-4 border-t flex flex-col gap-2 bg-gray-50">
-        <input id="input-nama" type="text" placeholder="Nama kamu..." class="border rounded-lg px-4 py-2 text-sm focus:outline-none">
+        <input id="input-nama" type="text" placeholder="Nama kamu..." class="border rounded-lg px-4 py-2 text-sm focus:outline-none text-black">
         <div class="flex gap-2">
-            <input id="input-komen" type="text" placeholder="Tulis komentar..." class="flex-1 border rounded-lg px-4 py-2 text-sm focus:outline-none">
+            <input id="input-komen" type="text" placeholder="Tulis komentar..." class="flex-1 border rounded-lg px-4 py-2 text-sm focus:outline-none text-black">
             <button onclick="sendComment()" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-bold">Kirim</button>
         </div>
     </div>
@@ -81,6 +133,13 @@
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxo5aawfXOV9o4aMPM1XYM1H2ZvWqCzDIHLFHgtizF2SMy6_m396RQ-7ngMeEhtGhYNcg/exec'; 
     
     let currentVideoId = null;
+
+    // Fungsi tutup modal
+    function closeModal() {
+        const modal = document.getElementById('welcome-modal');
+        modal.style.opacity = '0';
+        setTimeout(() => { modal.style.display = 'none'; }, 300);
+    }
 
     function shuffleArray(array) {
         for (let i = array.length - 1; i > 0; i--) {
@@ -97,8 +156,6 @@
             let rows = data.split(/\r?\n/).slice(1).filter(row => row.trim() !== ""); 
 
             rows = shuffleArray(rows);
-            
-            // Logika Infinite Loop: Duplikasi daftar video
             const loopRows = [...rows, ...rows, ...rows]; 
 
             const app = document.getElementById('app');
@@ -114,7 +171,6 @@
                     const card = document.createElement('div');
                     card.className = 'video-card';
                     card.setAttribute('data-video-id', videoId);
-                    // Tambahkan index unik untuk player id agar tidak bentrok saat duplikasi
                     const playerUniqueId = `player-${videoId}-${index}`;
                     card.innerHTML = `
                         <div class="video-frame">
@@ -166,11 +222,9 @@
     function setupInfiniteScroll() {
         const container = document.querySelector('.video-container');
         container.addEventListener('scroll', () => {
-            // Jika sudah hampir sampai ujung bawah, balikkan ke tengah secara halus
             if (container.scrollTop + container.clientHeight >= container.scrollHeight - 5) {
                 container.scrollTop = container.scrollHeight / 3;
             }
-            // Jika sudah di paling atas, lempar ke tengah
             if (container.scrollTop <= 5) {
                 container.scrollTop = container.scrollHeight / 3;
             }
@@ -198,7 +252,7 @@
                         const nameC = parts[0] || "Hamba Allah";
                         const msgC = parts.slice(1).join(': ') || "";
                         const div = document.createElement('div');
-                        div.className = "border-b pb-2 px-1";
+                        div.className = "border-b pb-2 px-1 text-black";
                         div.innerHTML = `<p class="text-[10px] font-bold text-red-500">${nameC}</p><p class="text-sm text-gray-700">${msgC}</p>`;
                         list.prepend(div);
                         hasComment = true;
@@ -240,7 +294,7 @@
         if(list.querySelector('p.italic')) list.innerHTML = '';
         
         const div = document.createElement('div');
-        div.className = "border-b pb-2 px-1";
+        div.className = "border-b pb-2 px-1 text-black";
         div.innerHTML = `<p class="text-[10px] font-bold text-red-500">${namaUser}</p><p class="text-sm text-gray-700">${komenUser}</p>`;
         list.prepend(div);
         
