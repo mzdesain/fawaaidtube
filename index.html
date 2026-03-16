@@ -44,7 +44,6 @@
             display: flex; flex-direction: column; gap: 20px; z-index: 20;
         }
 
-        /* Panel Universal */
         .side-panel {
             position: fixed; bottom: -100%; left: 0; width: 100%; height: 75%;
             background: white; border-radius: 24px 24px 0 0; transition: 0.3s; z-index: 50;
@@ -86,15 +85,11 @@
         <div class="grid grid-cols-1 gap-3 text-left mb-6 text-sm">
             <div class="bg-white/5 p-3 rounded-xl border border-white/10">
                 <p class="font-bold text-red-400">✨ Vertical Loop</p>
-                <p class="text-gray-400 text-xs">Video akan berulang terus menerus (Infinite Scrolling).</p>
+                <p class="text-gray-400 text-xs">Video akan berulang terus menerus secara otomatis.</p>
             </div>
             <div class="bg-white/5 p-3 rounded-xl border border-white/10">
                 <p class="font-bold text-red-400">💬 Real-time Comments</p>
-                <p class="text-gray-400 text-xs">Diskusi langsung dengan pengguna lain.</p>
-            </div>
-            <div class="bg-white/5 p-3 rounded-xl border border-white/10">
-                <p class="font-bold text-red-400">❤️ Like Sync</p>
-                <p class="text-gray-400 text-xs">Sinkronisasi jumlah suka secara otomatis.</p>
+                <p class="text-gray-400 text-xs">Berikan tanggapan berfaidah di setiap video.</p>
             </div>
         </div>
         <button onclick="closeAllPanels()" class="w-full bg-red-600 py-3 rounded-2xl font-bold">Lanjut Menonton</button>
@@ -113,7 +108,7 @@
         <span>Fitur</span>
     </button>
     <button onclick="closeAllPanels()" class="nav-item active">
-        <i class="fas fa-play-circle text-2xl"></i>
+        <i class="fas fa-play-circle text-2xl text-red-500"></i>
         <span>Short</span>
     </button>
     <button onclick="openKritik()" class="nav-item">
@@ -133,9 +128,9 @@
     </div>
     <div id="comment-list" class="flex-1 overflow-y-auto p-4 space-y-3 text-black text-sm"></div>
     <div class="p-4 border-t flex flex-col gap-2 bg-gray-50">
-        <input id="input-nama" type="text" placeholder="Nama..." class="border rounded-lg px-4 py-2 text-black">
+        <input id="input-nama" type="text" placeholder="Nama..." class="border rounded-lg px-4 py-2 text-black outline-none focus:border-red-500">
         <div class="flex gap-2">
-            <input id="input-komen" type="text" placeholder="Tulis komentar..." class="flex-1 border rounded-lg px-4 py-2 text-black">
+            <input id="input-komen" type="text" placeholder="Tulis komentar..." class="flex-1 border rounded-lg px-4 py-2 text-black outline-none focus:border-red-500">
             <button onclick="sendComment()" class="bg-red-500 text-white px-4 py-2 rounded-lg font-bold">Kirim</button>
         </div>
     </div>
@@ -223,8 +218,6 @@
             const res = await fetch(SHEET_CSV_URL);
             const data = await res.text();
             let rows = data.split(/\r?\n/).slice(1).filter(r => r.trim() !== ""); 
-            
-            // LOGIKA LOOPING: Duplikasi data video agar bisa scroll terus
             const loopRows = [...rows, ...rows, ...rows]; 
             const app = document.getElementById('app');
             app.innerHTML = ''; 
@@ -244,7 +237,7 @@
                             </div>
                             <div class="ui-overlay">
                                 <button onclick="handleLike('${id}', this)" class="btn-like flex flex-col items-center" data-id="${id}">
-                                    <div class="p-3 bg-black/40 rounded-full"><i class="fas fa-heart text-2xl heart-icon text-white"></i></div>
+                                    <div class="p-3 bg-black/40 rounded-full"><i class="fas fa-heart text-2xl heart-icon text-white transition-colors duration-300"></i></div>
                                     <span class="text-[10px] mt-1 font-bold text-white count-like" data-id="${id}">0</span>
                                 </button>
                                 <button onclick="showComments('${id}')" class="flex flex-col items-center">
@@ -257,7 +250,7 @@
                 }
             });
             setupIntersectionObserver();
-            setupInfiniteScroll(); // Aktifkan pendeteksi ujung scroll
+            setupInfiniteScroll();
             updateLikeCounts();
         } catch (e) {}
     }
@@ -265,11 +258,9 @@
     function setupInfiniteScroll() {
         const container = document.querySelector('.video-container');
         container.addEventListener('scroll', () => {
-            // Jika hampir sampai bawah, pindah ke tengah list agar terasa looping
             if (container.scrollTop + container.clientHeight >= container.scrollHeight - 50) {
                 container.scrollTop = container.scrollHeight / 3;
             }
-            // Jika sampai paling atas, lempar ke tengah
             if (container.scrollTop <= 5) {
                 container.scrollTop = container.scrollHeight / 3;
             }
@@ -278,10 +269,16 @@
 
     function handleLike(id, btn) {
         const icon = btn.querySelector('.heart-icon');
-        const countSpan = btn.querySelector('.count-like');
         if(!icon.classList.contains('text-red-500')) {
-            document.querySelectorAll(`.btn-like[data-id="${id}"] .heart-icon`).forEach(i => i.classList.add('text-red-500'));
-            document.querySelectorAll(`.count-like[data-id="${id}"]`).forEach(s => s.innerText = parseInt(s.innerText) + 1);
+            // Beri warna merah pada semua tombol dengan ID video yang sama
+            document.querySelectorAll(`.btn-like[data-id="${id}"] .heart-icon`).forEach(i => {
+                i.classList.remove('text-white');
+                i.classList.add('text-red-500');
+            });
+            // Update angka secara visual
+            document.querySelectorAll(`.count-like[data-id="${id}"]`).forEach(s => {
+                s.innerText = parseInt(s.innerText) + 1;
+            });
             saveInteraction(id, 'Like');
         }
     }
@@ -311,32 +308,56 @@
 
     async function loadComments(videoId) {
         const list = document.getElementById('comment-list');
-        list.innerHTML = '<p class="text-center italic text-gray-400">Memuat...</p>';
+        list.innerHTML = '<p class="text-center italic text-gray-400">Memuat komentar...</p>';
         try {
             const res = await fetch(COMMENT_CSV_URL + '&t=' + new Date().getTime());
             const text = await res.text();
-            const rows = text.split(/\r?\n/).slice(1);
+            // Perbaikan pemecahan baris
+            const rows = text.split(/\r?\n/).slice(1).filter(r => r.trim() !== "");
             list.innerHTML = '';
+            let hasComment = false;
+
             rows.forEach(row => {
-                const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$) /);
-                if(cols[0].includes(videoId) && cols[1].includes("Comment")) {
-                    const div = document.createElement('div');
-                    div.className = "border-b pb-2";
-                    const parts = cols[2].split(': ');
-                    div.innerHTML = `<p class="text-[10px] font-bold text-red-500">${parts[0]}</p><p>${parts.slice(1).join(': ')}</p>`;
-                    list.prepend(div);
+                const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                if(cols.length >= 3) {
+                    const vIdFromSheet = cols[0].replace(/"/g, '').trim();
+                    const type = cols[1].replace(/"/g, '').trim();
+                    
+                    if(vIdFromSheet === videoId && type === "Comment") {
+                        const content = cols[2].replace(/"/g, '').trim();
+                        const parts = content.split(': ');
+                        const name = parts[0] || "Hamba Allah";
+                        const msg = parts.slice(1).join(': ') || "";
+                        
+                        const div = document.createElement('div');
+                        div.className = "border-b pb-2 mb-2";
+                        div.innerHTML = `<p class="text-[10px] font-bold text-red-500">${name}</p><p class="text-sm">${msg}</p>`;
+                        list.prepend(div);
+                        hasComment = true;
+                    }
                 }
             });
-        } catch (e) {}
+            if(!hasComment) list.innerHTML = '<p class="text-center text-gray-400 italic">Belum ada komentar.</p>';
+        } catch (e) {
+            list.innerHTML = '<p class="text-center text-red-400 italic">Gagal memuat.</p>';
+        }
     }
 
     async function sendComment() {
-        const n = document.getElementById('input-nama').value || "Hamba Allah";
-        const k = document.getElementById('input-komen').value;
+        const n = document.getElementById('input-nama').value.trim() || "Hamba Allah";
+        const k = document.getElementById('input-komen').value.trim();
         if(!k) return;
+
+        // Visual feedback langsung
+        const list = document.getElementById('comment-list');
+        if(list.querySelector('.italic')) list.innerHTML = '';
+        const div = document.createElement('div');
+        div.className = "border-b pb-2 mb-2 animate-pulse";
+        div.innerHTML = `<p class="text-[10px] font-bold text-red-500">${n}</p><p class="text-sm">${k}</p>`;
+        list.prepend(div);
+
         saveInteraction(currentVideoId, 'Comment', `${n}: ${k}`);
         document.getElementById('input-komen').value = '';
-        setTimeout(() => loadComments(currentVideoId), 500);
     }
 
     loadVideos();
